@@ -43,6 +43,6 @@ optional arguments:
 
 ## Notes:
   * On windows, there is an option to choose from a list of interfaces because windows sucks at this.
-  * Currently beta, please let me knwo if you have issues
+  * Currently beta, please let me know if you have issues
 
   
