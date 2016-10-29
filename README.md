@@ -1,7 +1,10 @@
 # thor
 #### Connection Destruction tool.
+Thor is a program designed to inject RST's between two arbitrary machines, immediately tearing down the connection. It requires that Attacker/user machines must be able to see traffic (span port/tap/source). It can be used to persistently deny IP or Ports in place of an inline firewall with the use of the `-p` switch.
 
-Used to inject RST's between two arbitrary machines to immediately tear down the connection. Attacker/user machine must be able to see traffic (span port/tap/source). Can be used to persistently deny IP or Ports in place of an inline firewall.
+Thor can inject a packet when one of two conditions are met.
+1. The connection has a 0.2 second gap in trasmistion, or
+2. the inbuilt, 2 second, timer elapses. In this case thor will use the previous packets to guess a sequence number in range
     
 ## Usage:
 ```
