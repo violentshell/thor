@@ -149,7 +149,7 @@ def get_iface(args):
                 if num == iface_num:
                     args.iface = i
             logger.debug(('Interface set: {}').format(args.iface))
-    except NameError:
+    except AttributeError:
             print('Cant prove interface is good, trying anyway')
 
 
