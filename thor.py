@@ -136,17 +136,21 @@ class Kill(Process):
 
 
 def get_iface(args):
-    if args.iface:
-        if args.iface not in scapy.all.ifaces:
-            sys.exit('ERROR: Invalid interface')
-    else:
-        for num, i in enumerate(scapy.all.ifaces):
-            print('[' + str(num) + ']', i)
-        iface_num = int(input('Please select an interface: '))
-        for num, i in enumerate(scapy.all.ifaces):
-            if num == iface_num:
-                args.iface = i
-        logger.debug(('Interface set: {}').format(args.iface))
+    try:
+        scapy.all.ifaces
+        if args.iface:
+            if args.iface not in scapy.all.ifaces:
+                sys.exit('ERROR: Invalid interface')
+        else:
+            for num, i in enumerate(scapy.all.ifaces):
+                print('[' + str(num) + ']', i)
+            iface_num = int(input('Please select an interface: '))
+            for num, i in enumerate(scapy.all.ifaces):
+                if num == iface_num:
+                    args.iface = i
+            logger.debug(('Interface set: {}').format(args.iface))
+    except NameError:
+            print('Cant prove interface is good, trying anyway')
 
 
 
