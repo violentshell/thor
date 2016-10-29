@@ -1,12 +1,13 @@
 import logging
+from multiprocessing import Process, Queue, Lock
+import time
+import argparse
 
 # gets rid of scapy IPv6 error on import
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
 from scapy.all import *
-from multiprocessing import Process, Queue, Lock
-import time
-import argparse
+
 
 class PicklablePacket:
     """A container for scapy packets that can be pickled (in contrast
@@ -21,6 +22,7 @@ class PicklablePacket:
         pkt.time = self.time
         return pkt
 
+
 class Kill(Process):
     def __init__(self, que, lock, iface, persist):
         super(Kill, self).__init__()
@@ -34,16 +36,13 @@ class Kill(Process):
         self.ready_packet = None
 
     def run(self):
-        self.que_control(self.lock)
+        self.que_control()
 
     def add(self, pkt):
-        logger.debug(('Packet Recieved: {} ----> {}').format(pkt[IP].src, pkt[IP].dst))
+        logger.debug('Packet Recieved: {} ----> {}'.format(pkt[IP].src, pkt[IP].dst))
         self.que.put(PicklablePacket(pkt))
 
-
     def kill(self, pkt):
-
-        logger = logging.getLogger(__name__)
         pkt_tuple = (pkt[IP].dst, pkt[TCP].dport, pkt[TCP].flags)
         us_check = (pkt[IP].src, pkt[TCP].sport, pkt[TCP].flags)
 
@@ -61,13 +60,13 @@ class Kill(Process):
 
         else:
 
-            print(('Killing: {}:{} ---> {}:{}').format(pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport))
+            print('Killing: {}:{} ---> {}:{}'.format(pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport))
 
             # Setup the values
             self.flip(pkt)
 
             # send fin/rst with new checksum
-            srp1(self.ready_packet, iface=self.iface, timeout =1, verbose=False)
+            srp1(self.ready_packet, iface=self.iface, timeout=1, verbose=False)
 
     def flip(self, pkt):
 
@@ -92,8 +91,7 @@ class Kill(Process):
         # Set the packet reply we are looking for
         self.look_for = (pkt[IP].src, pkt[TCP].sport, 0x0004)
 
-
-    def que_control(self, lock):
+    def que_control(self):
         while True:
             # get que length
             self.quelen = self.que.qsize()
@@ -106,20 +104,19 @@ class Kill(Process):
             # 10 * 0.2 = 2 seconds
 
             if self.quelen < self.que.qsize() and self.que_wait_timeout < 10:
-                self.que_wait_timeout +=1
-
+                self.que_wait_timeout += 1
 
             # things in que, but same size or timeout reached
             elif not self.que.empty():
 
-                #print('Connection que size is currently: ' + str(self.que.qsize()))
+                # print('Connection que size is currently: ' + str(self.que.qsize()))
 
                 # Acquire lock to stop more packets adding, including what we send
                 self.lock.acquire()
 
                 # # fast stream
                 if self.que_wait_timeout >= 10:
-                    #logger.debug('Timeout Exceeded')
+                    # logger.debug('Timeout Exceeded')
                     # TODO some kill function that gets the average seq
                     pass
 
@@ -148,11 +145,9 @@ def get_iface(args):
             for num, i in enumerate(scapy.all.ifaces):
                 if num == iface_num:
                     args.iface = i
-            logger.debug(('Interface set: {}').format(args.iface))
+            logger.debug('Interface set: {}'.format(args.iface))
     except AttributeError:
             print('Cant prove interface is good, trying anyway')
-
-
 
 
 def gen_filter(args):
@@ -164,7 +159,7 @@ def gen_filter(args):
         filter = ' '.join(('tcp port', str(args.targetport)))
     else:
         sys.exit('Need IP or Port to proceed.')
-    logger.debug(('Filter set: {}').format(filter))
+    logger.debug('Filter set: {}'.format(filter))
     return filter
 
 
@@ -203,16 +198,14 @@ if __name__ == "__main__":
     # Select iface if not set/check
     get_iface(args)
 
-
     # Create filter from args
     filter = gen_filter(args)
 
     # Persist?
     if args.persist:
-        print(('Persistently killing connections on: {} - {}').format(args.iface, filter))
+        print('Persistently killing connections on: {} - {}'.format(args.iface, filter))
     else:
         args.persist = False
-
 
     # Initialise the que
     que = Queue()
@@ -228,5 +221,5 @@ if __name__ == "__main__":
     killer.start()
 
     # Check for traffic and add to que
-    sniff(filter=filter, prn = killer.add, iface=args.iface)
+    sniff(filter=filter, prn=killer.add, iface=args.iface)
 
