@@ -45,7 +45,7 @@ class Kill(Process):
         pkt_tuple = (pkt[IP].dst, pkt[TCP].dport, pkt[TCP].flags)
         us_check = (pkt[IP].src, pkt[TCP].sport, pkt[TCP].flags)
 
-        # Were we waiting for it and Incoming is not what we sent
+        # Are we waiting for it ?
         if self.look_for == pkt_tuple:
                 print('Great Success. Connection Dead: Acknowledgment reset seen')
                 if not self.persist:
@@ -53,17 +53,18 @@ class Kill(Process):
                     print('Bye')
                     os._exit(1)
 
-        # did we send this packet ?
+        # Did we send this packet ?
         elif self.look_for == us_check:
             pass
 
         else:
+            # Info
             print('Killing: {}:{} ---> {}:{}'.format(pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport))
 
-            # Setup the values
+            # Setup the new packet values
             self.flip(pkt)
 
-            # send fin/rst with new checksum
+            # send rst with new checksums
             srp1(self.ready_packet, iface=self.iface, timeout=1, verbose=False)
 
     def flip(self, pkt):
@@ -97,14 +98,13 @@ class Kill(Process):
             # wait so we don't respond to every single packet
             time.sleep(0.2)
 
-            # check the saved que length vs current que length and
-            # every 2 seconds to see if the stream is very fast
+            # Check the saved que length vs current que length
+            # If > 2 seconds the stream is very fast adn we need to try anyway
             # 10 * 0.2 = 2 seconds
-
             if self.quelen < self.que.qsize() and self.que_wait_timeout < 10:
                 self.que_wait_timeout += 1
 
-            # things in que, but same size or timeout reached
+            # Things in que, but same size or timeout reached
             elif not self.que.empty():
 
                 # print('Connection que size is currently: ' + str(self.que.qsize()))
@@ -112,14 +112,16 @@ class Kill(Process):
                 # Acquire lock to stop more packets adding, including what we send
                 self.lock.acquire()
 
-                # # fast stream
+                # Fast stream
                 if self.que_wait_timeout >= 10:
                     # logger.debug('Timeout Exceeded')
                     # TODO some kill function that gets the average seq
                     pass
 
-                # Get the last item
+                # Setup var
                 usable_pkt = None
+
+                # Get the last item
                 while not self.que.empty():
 
                     # get and unpickle packet
@@ -132,6 +134,7 @@ class Kill(Process):
 
 def get_iface(args):
     try:
+        # This will fail on linux
         scapy.all.ifaces
         if args.iface:
             if args.iface not in scapy.all.ifaces:
@@ -173,7 +176,6 @@ def parse():
                         choices=['v', 'vv'], help='The verbosity level')
     parser.add_argument('-p', dest='persist', required=False, action='store_true',
                         help='Persistently kill connections')
-
     return parser.parse_args()
 
 
