@@ -1,27 +1,13 @@
-from scapy.all import *
-from multiprocessing import Process, Queue, Manager, Lock, Value
-import time
-import hashlib
 import logging
-import datetime
+# gets rid of scapy IPv6 error on import
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
+
+from scapy.all import *
 from termcolor import colored
+from multiprocessing import Process, Queue, Lock
+import time
+import datetime
 import argparse
-
-
-
-import select
-
-
-
-class sniffer(Process):
-    def __init__(self, lock):
-        super(sniffer, self).__init__()
-        self.p_instance = ProcessConn(lock)
-
-
-    def run(self):
-        sniff(filter='tcp', prn=self.p_instance.add)
-        #sniff(filter='tcp port 22 or tcp port 3389', prn=self.p_instance.add)
 
 class PicklablePacket:
     """A container for scapy packets that can be pickled (in contrast
@@ -36,126 +22,9 @@ class PicklablePacket:
         pkt.time = self.time
         return pkt
 
-
-class ProcessConn():
-    def __init__(self, lock):
-        self.db = Manager().dict()
-        self.lock = lock
-
-    class Object():
-        '''
-                    four_tuple  : str   String of four tuple
-                    hash        : str   Hash String 512bits
-                    pkt         : obj   Scapy Packet
-                    packets     : int   Packet counter
-                    server      : bool  Is server
-        '''
-        def __init__(self):
-            self.four_tuple = str()
-            self.hash = str()
-            self.last_seen = str()
-            self.packets = 1
-            self.pkt = None
-            self.dport = None
-            self.sport = None
-
-
-    def add(self, pkt):
-        try:
-            # Get Lock
-            self.lock.acquire()
-
-            # Create new object
-            conn = self.Object()
-
-            # Extract the 4 tuple
-            self.extract_four_tuple(conn, pkt)
-
-            # Hash it
-            self.hash(conn)
-
-            # Check the packet to see if its a RST or FIN
-            self.state(conn, pkt)
-
-            # Check the db True if added or already in, False if removed
-            if self.check_exists(conn):
-
-                # Add Packet
-                conn.pkt = PicklablePacket(pkt)
-
-                # Update counter
-                self.packet_counter(conn)
-
-                # Save
-                self.db[conn.hash] = conn
-
-            # Finally
-            self.lock.release()
-
-        except Exception as e:
-            return logger.debug(e)
-
-
-    def extract_four_tuple(self, conn, pkt):
-        if pkt.haslayer(TCP):
-            conn.src = pkt[IP].src
-            conn.dst = pkt[IP].dst
-            conn.sport = str(pkt[TCP].sport)
-            conn.dport = str(pkt[TCP].dport)
-            if conn.sport < conn.dport:
-                conn.four_tuple = " ".join((conn.src, conn.sport, conn.dst, conn.dport))
-            else:
-                conn.four_tuple = " ".join((conn.dst, conn.dport, conn.src, conn.sport))
-            logger.debug('Incoming connection: {}'.format(conn.four_tuple))
-        else:
-            raise 'LayerError'
-
-
-    def hash(self, object):
-        try:
-            object.hash = hashlib.sha512(bytes(object.four_tuple, 'utf-8')).hexdigest()
-        except Exception as e:
-            print(e)
-            print('[!] Hash error while trying', object.four_tuple)
-
-
-    def state(self, conn, pkt):
-        if pkt[TCP].flags in (0x0004, 0x0011, 0x0001, 0x00e):
-            logger.debug(pkt[TCP].flags)
-            conn.end = True
-        else:
-            logger.debug(pkt[TCP].flags)
-            conn.end = False
-
-
-    def check_exists(self, conn):
-        if conn.hash in self.db:
-            if conn.end == False:
-                conn.last_seen = datetime.datetime.now()
-                logger.debug('Conn exists: {}..'.format(conn.hash[:16]))
-                return True
-            else:
-                del self.db[conn.hash]
-                logger.debug('Removed conn: {}..'.format(conn.hash[:16]))
-                return False
-        else:
-            conn.last_seen = datetime.datetime.now()
-            #self.db[conn.hash] = conn
-            logger.debug('Conn added: {}..'.format(conn.hash[:16]))
-            return True
-
-
-    def packet_counter(self, conn):
-        try:
-            conn.packets = self.db[conn.hash].packets + 1
-        except:
-            conn.packets = 1
-
-
-# This is all TODO
-class kill(Process):
+class Kill(Process):
     def __init__(self, que, lock):
-        super(kill, self).__init__()
+        super(Kill, self).__init__()
         self.que = que
         self.quelen = 0
         self.lock = lock
@@ -164,16 +33,11 @@ class kill(Process):
         self.que_wait_timeout = 0
         self.mode = None
 
-
     def run(self):
         self.que_control(self.lock)
-        # print(self.pkt[TCP].seq, self.pkt[TCP].ack)
-        # ft = " ".join(('ip host', self.pkt[IP].src, 'or',  self.pkt[IP].dst,
-        #                'and port', str(self.pkt[TCP].sport), 'or', str(self.pkt[TCP].dport)))
-        # sniff(filter=ft, prn=self.kill)
 
     def add(self, pkt):
-        #logger.debug('Packet Recieved')
+        logger.debug('Packet Recieved')
         self.que.put(PicklablePacket(pkt))
 
 
@@ -184,11 +48,7 @@ class kill(Process):
         # If we were waiting for this, it's over
         if self.look_for == (pkt[IP].dst, pkt[TCP].dport, pkt[TCP].flags):
             logger.debug('Connection Dead: Acknowledgment reset seen')
-            #print(pkt.show2())
             self.look_for = None
-
-        #if self.last_packet == pkt:
-         #   return
 
         # Setup the values
         self.flip(pkt)
@@ -383,9 +243,12 @@ def parse():
     return parser.parse_args()
 
 
+
+
+
+
 if __name__ == "__main__":
 
-    #logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
     logging.basicConfig(format='%(levelname)s : %(asctime)s - %(message)s')
     logging.basicConfig(datefmt='%I:%M%S')
     logging.basicConfig(level=logging.DEBUG)
@@ -400,30 +263,19 @@ if __name__ == "__main__":
     elif args.verbosity == 'vv':
         logger.setLevel(logging.DEBUG)
 
-    # create filter from args
-    #filter = ' '.join(('ip host', args.targetip, 'and tcp port', str(args.targetport)))
+    # Create filter from args
+    filter = ' '.join(('ip host', args.targetip, 'and tcp port', str(args.targetport)))
 
-    filter = ' '.join(('ip host', args.targetip))
     # Initialise the que
     que = Queue()
     lock = Lock()
 
-    # add que to the threaded class instance
-    killer = kill(que, lock)
-    # killer.daemon = True
+    # Add que to the threaded class instance
+    killer = Kill(que, lock)
+    killer.daemon = True
 
     # Start the instance
     killer.start()
 
-    # check for traffic and add to que to kill
+    # Check for traffic and add to que
     sniff(filter=filter, prn = killer.add)
-
-    # lock = Lock()
-    # engine = sniffer(lock)
-    # engine.daemon = True
-    # engine.start()
-    #
-    # d = printer()
-    # data = engine.p_instance.db
-    #
-    # d.menu(data, lock)
