@@ -13,7 +13,7 @@ Used to inject RST's between two arbitrary machines to immediately tear down the
     
 ### Usage:
 
-thor.py [-i Eth0] [-t 192.168.1.1] [-s 22] [-v v, vv] [-p]
+```thor.py [-i Eth0] [-t 192.168.1.1] [-s 22] [-v v, vv] [-p]
 
 Thor: Killing conns since 2016
 
@@ -24,6 +24,7 @@ optional arguments:
   -s 22           The target port.
   -v v, vv        The verbosity level
   -p              Persistently kill connections
+  ```
   
 ### Common usage examples:
   
