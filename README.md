@@ -1,17 +1,17 @@
 # thor
-## Connection Destruction tool.
+#### Connection Destruction tool.
 
 Used to inject RST's between two arbitrary machines to immediately tear down the connection. Attacker/user machine must be able to see traffic (span port/tap/source). Can be used to persistently deny IP or Ports in place of an inline firewall.
 
-### Dependencies:
+## Dependencies:
 * Python 3.5
 * Scapy 3.0.0
     
-### Tested on:
+## Tested on:
 * Windows 10
 * Kali 2016.2
     
-### Usage:
+## Usage:
 ```
 thor.py [-i Eth0] [-t 192.168.1.1] [-s 22] [-v v, vv] [-p]
 
@@ -26,7 +26,7 @@ optional arguments:
   -p              Persistently kill connections
 ```
   
-### Common usage examples:
+## Common usage examples:
   
 #### Deny port 
   thor.py -s 22 -i eth0
