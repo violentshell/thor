@@ -1,12 +1,11 @@
 import logging
+
 # gets rid of scapy IPv6 error on import
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
 from scapy.all import *
-from termcolor import colored
 from multiprocessing import Process, Queue, Lock
 import time
-import datetime
 import argparse
 
 class PicklablePacket:
@@ -50,16 +49,20 @@ class Kill(Process):
 
         # Were we waiting for it and Incoming is not what we sent
         if self.look_for == pkt_tuple:
-                print('Connection Dead: Acknowledgment reset seen')
+                print('Great Success. Connection Dead: Acknowledgment reset seen')
                 if not self.persist:
                     # todo Exit here
                     print('Bye')
+                    os._exit(1)
 
         # did we send this packet ?
         elif self.look_for == us_check:
             pass
 
         else:
+
+            print(('Killing: {}:{} ---> {}:{}').format(pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport))
+
             # Setup the values
             self.flip(pkt)
 
@@ -108,6 +111,7 @@ class Kill(Process):
 
             # things in que, but same size or timeout reached
             elif not self.que.empty():
+
                 #print('Connection que size is currently: ' + str(self.que.qsize()))
 
                 # Acquire lock to stop more packets adding, including what we send
@@ -115,9 +119,9 @@ class Kill(Process):
 
                 # # fast stream
                 if self.que_wait_timeout >= 10:
-                    logger.debug('Timeout Exceeded')
-                #     # some kill function that gets the average seq
-                #     pass
+                    #logger.debug('Timeout Exceeded')
+                    # TODO some kill function that gets the average seq
+                    pass
 
                 # Get the last item
                 usable_pkt = None
@@ -130,15 +134,20 @@ class Kill(Process):
                 self.kill(usable_pkt)
                 self.lock.release()
 
-def get_iface():
-    for num, i in enumerate(scapy.all.ifaces):
-        print('[' + str(num) + ']', i)
-    iface_num = int(input('Please select an interface: '))
-    for num, i in enumerate(scapy.all.ifaces):
-        if num == iface_num:
-            iface = i
-    logger.debug(('Interface set: {}').format(iface))
-    return iface
+
+def get_iface(args):
+    if args.iface:
+        if args.iface not in scapy.all.ifaces:
+            sys.exit('ERROR: Invalid interface')
+    else:
+        for num, i in enumerate(scapy.all.ifaces):
+            print('[' + str(num) + ']', i)
+        iface_num = int(input('Please select an interface: '))
+        for num, i in enumerate(scapy.all.ifaces):
+            if num == iface_num:
+                args.iface = i
+        logger.debug(('Interface set: {}').format(args.iface))
+
 
 
 
@@ -159,14 +168,14 @@ def parse():
     parser = argparse.ArgumentParser(description='Thor: Killing conns since 2016')
     parser.add_argument('-i', dest='iface', type=str, required=False, metavar='Eth0',
                         help='The interface to use')
-    parser.add_argument('-p', dest='persist', type=str, required=False,
-                        help='Persistently kill connections')
     parser.add_argument('-t', dest='targetip', type=str, required=False, metavar='192.168.1.1',
                         help='The target server.')
     parser.add_argument('-s', dest='targetport', type=int, required=False, metavar=22,
                         help='The target port.')
     parser.add_argument('-v', dest='verbosity', type=str, required=False, metavar='v, vv', default='v',
                         choices=['v', 'vv'], help='The verbosity level')
+    parser.add_argument('-p', dest='persist', required=False, action='store_true',
+                        help='Persistently kill connections')
 
     return parser.parse_args()
 
@@ -187,18 +196,19 @@ if __name__ == "__main__":
     elif args.verbosity == 'vv':
         logger.setLevel(logging.DEBUG)
 
-    # Persist?
-    if args.persist:
-        persist = True
-    else:
-        persist = False
+    # Select iface if not set/check
+    get_iface(args)
 
-    # Select iface if not set
-    if not args.iface:
-        iface = get_iface()
 
     # Create filter from args
     filter = gen_filter(args)
+
+    # Persist?
+    if args.persist:
+        print(('Persistently killing connections on: {} - {}').format(args.iface, filter))
+    else:
+        args.persist = False
+
 
     # Initialise the que
     que = Queue()
@@ -207,12 +217,12 @@ if __name__ == "__main__":
     lock = Lock()
 
     # Add que, lock and iface to the threaded class instance
-    killer = Kill(que, lock, iface, persist)
+    killer = Kill(que, lock, args.iface, args.persist)
     killer.daemon = True
 
     # Start the instance
     killer.start()
 
     # Check for traffic and add to que
-    sniff(filter=filter, prn = killer.add, iface=iface)
+    sniff(filter=filter, prn = killer.add, iface=args.iface)
 
