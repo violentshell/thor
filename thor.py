@@ -1,6 +1,5 @@
 import logging
 from multiprocessing import Process, Queue, Lock
-import time
 import argparse
 
 # gets rid of scapy IPv6 error on import
@@ -59,7 +58,6 @@ class Kill(Process):
             pass
 
         else:
-
             print('Killing: {}:{} ---> {}:{}'.format(pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport))
 
             # Setup the values
