@@ -1,6 +1,6 @@
 # thor
-#### Connection Destruction tool.
-Thor is a program designed to inject RST's between two arbitrary machines, immediately tearing down the connection. It requires that the attacker/user machines must be able to see at least one side of the targeted traffic (span port/tap/source). It can be used to persistently deny IP's or Ports in place of an inline firewall with the use of the `-p` switch.
+#### TCP Connection Destruction tool.
+Thor is a program designed to inject TCP RST's between two arbitrary machines, immediately tearing down the connection. It requires that the attacker/user machines must be able to see at least one side of the targeted traffic (span port/tap/source). It can be used to persistently deny IP's or Ports in place of an inline firewall with the use of the `-p` switch.
 
 Thor can/will inject a packet when one of two conditions are met:
 
