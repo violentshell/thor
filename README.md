@@ -24,7 +24,7 @@ optional arguments:
   -s 22           The target port.
   -v v, vv        The verbosity level
   -p              Persistently kill connections
-  ```
+```
   
 ### Common usage examples:
   
