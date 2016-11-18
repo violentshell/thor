@@ -62,12 +62,12 @@ class Kill(Process):
             print('Killing: {}:{} ---> {}:{}'.format(pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport))
 
             # Setup the new packet values
-            self.flip(pkt)
+            self.prepare_packet(pkt)
 
             # send rst with new checksums
-            srp1(self.ready_packet, iface=self.iface, timeout=1, verbose=False)
+            sendp(self.ready_packet, iface=self.iface, verbose=False)
 
-    def flip(self, pkt):
+    def prepare_packet(self, pkt):
 
         # Universal packet info
         self.ready_packet = copy.copy(pkt)
@@ -106,8 +106,6 @@ class Kill(Process):
 
             # Things in que, but same size or timeout reached
             elif not self.que.empty():
-
-                # print('Connection que size is currently: ' + str(self.que.qsize()))
 
                 # Acquire lock to stop more packets adding, including what we send
                 self.lock.acquire()
